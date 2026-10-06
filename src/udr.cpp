@@ -246,7 +246,12 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
 
-        snprintf(curr_options.port_num, PATH_MAX, "%s", strtok(line, " "));
+        char * port_word = strtok(line, " ");
+        if (port_word == NULL) {
+            fprintf(stderr, "UDR ERROR: unexpected response from server, exiting.\n");
+            exit(EXIT_FAILURE);
+        }
+        snprintf(curr_options.port_num, sizeof(curr_options.port_num), "%s", port_word);
 
         char * hex_pp = strtok(NULL, " ");
 
