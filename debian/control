@@ -1,0 +1,22 @@
+Source: udr
+Section: net
+Priority: optional
+Maintainer: Dmitry Musatov <dm@dgma.io>
+Build-Depends: debhelper-compat (= 13), libudt-dev (>= 4.13), libssl-dev, pkgconf, rsync
+Standards-Version: 4.7.0
+Rules-Requires-Root: no
+Homepage: https://github.com/dm32768/UDR
+
+Package: udr
+Architecture: amd64
+Depends: ${shlibs:Depends}, ${misc:Depends}, rsync, openssh-client
+Description: rsync over UDT for long, fast links
+ udr runs rsync with its data channel on UDT, a reliable transport on UDP,
+ instead of the ssh connection. ssh logs in and starts udr on the far side;
+ the transfer then runs over one UDP port, picked from a range on the host
+ that receives. On a link with a long round trip and some loss, UDT's
+ congestion control can keep the link fuller than TCP does.
+ .
+ udr must be installed on both hosts. Its -n option encrypts the data
+ channel with a cipher that carries no integrity check, and it is not a
+ substitute for a tunnel; see udr(1).

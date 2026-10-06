@@ -1,0 +1,76 @@
+.TH UDR 1 "" "udr 0.9.4" "User Commands"
+.SH NAME
+udr \- rsync over UDT
+.SH SYNOPSIS
+.B udr
+.RI [ "UDR options" ]
+.B rsync
+.RI [ "rsync options" ]
+.I source destination
+.SH DESCRIPTION
+.B udr
+runs rsync with its data channel on UDT, a reliable transport on UDP, in
+place of ssh. One side is local and one remote:
+.IR host:path " or " user@host:path .
+.PP
+udr logs in to the remote host with ssh and starts udr there. The remote udr
+picks a free UDP port from a range and reports it over the ssh connection;
+the transfer then runs over that port. udr must be installed on both hosts.
+.PP
+The rsync options are rsync's own, except
+.BR \-e " and " \-\-rsh ,
+which udr sets.
+.SH OPTIONS
+.TP
+.BI \-P " ssh-port"
+Port of the remote ssh server (default 22).
+.TP
+.BI \-a " port"
+First UDP port the receiving host may use (default 9000).
+.TP
+.BI \-b " port"
+Last UDP port it may use (default 9100).
+.TP
+.BI \-c " path"
+Path of udr on the remote host (default: udr, from the remote PATH).
+.TP
+.BI \-d " seconds"
+Data transfer timeout (default 15).
+.TP
+.BI \-r " Mbps"
+Cap the sending rate.
+.TP
+.BI \-i " address"
+Address the receiver binds to.
+.TP
+.BR \-n [\fIcipher\fR]
+Encrypt the data channel. The cipher goes right after the option, as in
+.BR \-naes\-256 ;
+udr hands the remote side no cipher name it reads, so every connection runs
+aes\-128. See
+.BR SECURITY .
+.TP
+.B \-v
+Verbose.
+.TP
+.B \-\-version
+Print the version.
+.SH FIREWALL
+The receiving host takes inbound UDP on one port per transfer running at the
+same time, from the \-a to \-b range. The sending host needs nothing beyond
+replies to what it started. With
+.B \-a 9000 \-b 9000
+exactly one port is open and one transfer can run.
+.SH SECURITY
+Without \-n the data channel is plain. With \-n it uses one key for both
+directions, an all-zero IV and a stream mode, and nothing authenticates the
+packets. Treat it as obfuscation and run udr inside a tunnel (WireGuard,
+ssh \-w) when the data matters. ssh protects the login only.
+.SH EXAMPLES
+.nf
+udr rsync \-av \-\-progress /data/ host:/data/
+udr \-P 27522 \-a 9000 \-b 9000 rsync \-a big.tar user@host:/srv/
+.fi
+.SH SEE ALSO
+.BR rsync (1),
+.BR ssh (1)

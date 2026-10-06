@@ -1,0 +1,11 @@
+#!/usr/bin/make -f
+# The loopback smoke test of tests/ runs in the build (make check).
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+export DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+
+%:
+	dh $@
+
+override_dh_auto_test:
+	$(MAKE) check
