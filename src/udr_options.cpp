@@ -197,9 +197,11 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
 
     //Finish setting up the key file path
     if (key_dir == NULL) {
-        snprintf(udr_options->key_filename, PATH_MAX, "%s", udr_options->key_base_filename);
+        strncpy(udr_options->key_filename, udr_options->key_base_filename, PATH_MAX - 1);
+        udr_options->key_filename[PATH_MAX - 1] = '\0';
     } else {
-        sprintf(udr_options->key_filename, "%s/%s", key_dir, udr_options->key_base_filename);
+        snprintf(udr_options->key_filename, PATH_MAX, "%.*s/%.*s", PATH_MAX / 2 - 1, key_dir,
+                 PATH_MAX / 2 - 1, udr_options->key_base_filename);
     }
 
     //Set which_process for debugging output
@@ -296,7 +298,6 @@ void get_host_username(UDR_Options * udr_options, int argc, char *argv[], int rs
     src_username[0] = '\0';
     src_host[0] = '\0';
 
-    int src_username_len, src_host_len, dest_username_len, dest_host_len;
 
     char * dest = argv[argc-1];
 

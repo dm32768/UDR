@@ -40,45 +40,29 @@ and limitations under the License.
 using namespace std;
 
 char * get_udr_cmd(UDR_Options * udr_options) {
-    char udr_args[PATH_MAX];
-    if (udr_options->encryption) {
-        strcpy(udr_args, "-n ");
-        strcat(udr_args, udr_options->encryption_type);
-        strcat(udr_args, " ");
-    }
-    else
-        udr_args[0] = '\0';
+    ostringstream args;
+    if (udr_options->encryption)
+        args << "-n " << udr_options->encryption_type << " ";
 
-    char delay_args[PATH_MAX];
-    sprintf(delay_args, " -d %d ", udr_options->timeout);
-    strcat(udr_args, delay_args);
+    args << " -d " << udr_options->timeout << " ";
 
     if (udr_options->verbose)
-        strcat(udr_args, "-v");
+        args << "-v";
 
-    if (udr_options->specify_ip){
-	char specify_ip_arg[PATH_MAX];
-	sprintf(specify_ip_arg, " -i%s", udr_options->specify_ip);
-	strcat(udr_args, specify_ip_arg);
-    }
+    if (udr_options->specify_ip)
+        args << " -i" << udr_options->specify_ip;
 
-    if (udr_options->bandwidthcap > 0){
-	char specify_maxrate_arg[PATH_MAX];
-	sprintf(specify_maxrate_arg, " -r %d", udr_options->bandwidthcap);
-	strcat(udr_args, specify_maxrate_arg);
-    }
+    if (udr_options->bandwidthcap > 0)
+        args << " -r " << udr_options->bandwidthcap;
 
-    if (udr_options->server_connect) {
-        sprintf(udr_args, "%s %s", udr_args, "-t rsync");
-    }
-    else {
-        sprintf(udr_args, "%s -a %d -b %d %s", udr_args, udr_options->start_port, udr_options->end_port, "-t rsync");
-    }
+    if (udr_options->server_connect)
+        args << " -t rsync";
+    else
+        args << " -a " << udr_options->start_port << " -b " << udr_options->end_port << " -t rsync";
 
-    char* udr_cmd = (char *) malloc(strlen(udr_options->udr_program_dest) + strlen(udr_args) + 3);
-    sprintf(udr_cmd, "%s %s\n", udr_options->udr_program_dest, udr_args);
-
-    return udr_cmd;
+    ostringstream cmd;
+    cmd << udr_options->udr_program_dest << " " << args.str() << '\n';
+    return strdup(cmd.str().c_str());
 }
 
 void print_version() {
@@ -222,11 +206,11 @@ int main(int argc, char* argv[]) {
 
             // Add ssh port
             sprintf(ssh_port_str, "%d", curr_options.ssh_port);
-            ssh_argv[ssh_idx++] = "-p";
+            ssh_argv[ssh_idx++] = (char *) "-p";
             ssh_argv[ssh_idx++] = ssh_port_str;
 
             if (strlen(curr_options.username) != 0) {
-                ssh_argv[ssh_idx++] = "-l";
+                ssh_argv[ssh_idx++] = (char *) "-l";
                 ssh_argv[ssh_idx++] = curr_options.username;
             }
 
@@ -272,7 +256,7 @@ int main(int argc, char* argv[]) {
 
         if (curr_options.encryption) {
             FILE *key_file = fopen(curr_options.key_filename, "w");
-            int succ = chmod(curr_options.key_filename, S_IRUSR | S_IWUSR);
+            chmod(curr_options.key_filename, S_IRUSR | S_IWUSR);
 
             if (key_file == NULL) {
                 fprintf(stderr, "UDR ERROR: could not write key file: %s\n", curr_options.key_filename);
@@ -301,11 +285,11 @@ int main(int argc, char* argv[]) {
         strcpy(rsync_argv[rsync_idx], argv[rsync_arg_idx]);
         rsync_idx++;
 
-        rsync_argv[rsync_idx++] = "--blocking-io";
+        rsync_argv[rsync_idx++] = (char *) "--blocking-io";
 
         //rsync_argv[rsync_idx++] = curr_options.rsync_timeout;
 
-        rsync_argv[rsync_idx++] = "-e";
+        rsync_argv[rsync_idx++] = (char *) "-e";
 
         char udr_rsync_args1[100];
 
@@ -352,11 +336,12 @@ int main(int argc, char* argv[]) {
         //at this point this process should wait for the rsync process to end
         int buf_size = 4096;
         char rsync_out_buf[buf_size];
-        int bytes_read, bytes_written;
+        int bytes_read;
 
         //This prints out the stdout from rsync to stdout
         while ((bytes_read = read(child_to_parent, rsync_out_buf, buf_size)) > 0) {
-            bytes_written = write(STDOUT_FILENO, rsync_out_buf, bytes_read);
+            if (write(STDOUT_FILENO, rsync_out_buf, bytes_read) < 0)
+                break;
         }
 
         int rsync_exit_status;

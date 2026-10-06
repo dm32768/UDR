@@ -133,7 +133,7 @@ void *handle_to_udt(void *threadarg) {
     struct thread_data *my_args = (struct thread_data *) threadarg;
     char indata[max_block_size];
     char outdata[max_block_size];
-    FILE*  logfile;
+    FILE*  logfile = NULL;
 
     if(my_args->log) {
 	string filename = my_args->logfile_dir + convert_int(my_args->id) + "_log.txt";
@@ -211,7 +211,7 @@ void *udt_to_handle(void *threadarg) {
     struct thread_data *my_args = (struct thread_data *) threadarg;
     char indata[max_block_size];
     char outdata[max_block_size];
-    FILE* logfile;
+    FILE* logfile = NULL;
 
     if(my_args->log) {
 	string filename = my_args->logfile_dir + convert_int(my_args->id) + "_log.txt";
@@ -462,7 +462,10 @@ int run_receiver(UDR_Options * udr_options) {
     }
 
     unsigned char rand_pp[PASSPHRASE_SIZE+1];
-    int success = RAND_bytes((unsigned char *) rand_pp, PASSPHRASE_SIZE);
+    if (RAND_bytes((unsigned char *) rand_pp, PASSPHRASE_SIZE) != 1) {
+        fprintf(stderr, "UDR ERROR: could not get random bytes for the key\n");
+        exit(EXIT_FAILURE);
+    }
     rand_pp[PASSPHRASE_SIZE] = '\0';
 
     //stdout port number and password -- to send back to the client
@@ -499,7 +502,6 @@ int run_receiver(UDR_Options * udr_options) {
 
     //If in server mode, need to check that --sender is a option (read-only) and change the directory to be in the directory that is being served up.
 //  const char * sender_flag = "--sender";
-    bool seen_sender = false;
 //  bool after_dot = false;
 //  int file_idx = -1;
 //  bool called_glob = false;
@@ -519,7 +521,7 @@ int run_receiver(UDR_Options * udr_options) {
         if(udr_options->verbose)
             fprintf(stderr, "[udr receiver] server connect mode\n");
 
-        rsync_cmd = (char *)malloc(100);
+        rsync_cmd = (char *)malloc(strlen(udr_options->server_config) + 64);
 
         if(strlen(udr_options->server_config) > 0){
             sprintf(rsync_cmd, "%s%s %s", "rsync --config=", udr_options->server_config, " --server --daemon .");
@@ -539,7 +541,7 @@ int run_receiver(UDR_Options * udr_options) {
 
     char ** sh_cmd = (char **)malloc(sizeof(char *) * 4);
     sh_cmd[0] = udr_options->shell_program;
-    sh_cmd[1] = "-c";
+    sh_cmd[1] = (char *) "-c";
     sh_cmd[2] = rsync_cmd;
     sh_cmd[3] = NULL;
 
