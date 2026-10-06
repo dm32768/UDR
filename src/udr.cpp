@@ -124,7 +124,10 @@ int main(int argc, char* argv[]) {
                 fprintf(stderr, "UDR ERROR: could not read from key_file %s\n", curr_options.key_filename);
                 exit(EXIT_FAILURE);
             }
-            fgets(hex_pp, HEX_PASSPHRASE_SIZE+1, key_file);
+            if (fgets(hex_pp, HEX_PASSPHRASE_SIZE+1, key_file) == NULL) {
+                fprintf(stderr, "UDR ERROR: could not read the key from %s\n", curr_options.key_filename);
+                exit(EXIT_FAILURE);
+            }
             fclose(key_file);
             remove(curr_options.key_filename);
 

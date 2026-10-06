@@ -552,10 +552,16 @@ int run_receiver(UDR_Options * udr_options) {
 
     //now if we're in server mode need to drop privileges if specified
     if(udr_options->rsync_gid > 0){
-        setgid(udr_options->rsync_gid);
+        if (setgid(udr_options->rsync_gid) != 0) {
+            perror("UDR ERROR: setgid");
+            exit(EXIT_FAILURE);
+        }
     }
     if(udr_options->rsync_uid > 0){
-        setuid(udr_options->rsync_uid);
+        if (setuid(udr_options->rsync_uid) != 0) {
+            perror("UDR ERROR: setuid");
+            exit(EXIT_FAILURE);
+        }
     }
 
     if(udr_options->verbose){
