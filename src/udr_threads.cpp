@@ -296,6 +296,11 @@ int run_sender(UDR_Options * udr_options, const char * key_hex, unsigned char * 
         UDT::setsockopt(client, 0, UDT_MAXBW, &opt, sizeof(opt));
     }
 
+    if (udr_options->mss > 0) {
+        int mss = udr_options->mss;
+        UDT::setsockopt(client, 0, UDT_MSS, &mss, sizeof(mss));
+    }
+
     if (UDT::ERROR == UDT::connect(client, peer->ai_addr, peer->ai_addrlen)) {
 	cerr << "[udr sender] connect: " << UDT::getlasterror().getErrorMessage() << endl;
 	return 1;
@@ -442,6 +447,13 @@ int run_receiver(UDR_Options * udr_options) {
 	        UDT::setsockopt(serv, 0, UDT_MAXBW, &opt, sizeof(opt));
 	    }
 
+	    // The accepted socket inherits it; the handshake takes the smaller
+	    // of the two ends' values.
+	    if (udr_options->mss > 0) {
+	        int mss = udr_options->mss;
+	        UDT::setsockopt(serv, 0, UDT_MSS, &mss, sizeof(mss));
+	    }
+
 	    if (specify_ip){
 
 		my_addr.sin_family = AF_INET;
@@ -487,7 +499,7 @@ int run_receiver(UDR_Options * udr_options) {
     fflush(stdout);
 
     if(udr_options->verbose)
-	fprintf(stderr, "[udr receiver] server is ready at port %s\n", receiver_port);
+	fprintf(stderr, "[udr receiver] server is ready at port %s mss %d\n", receiver_port, udr_options->mss);
 
     if (UDT::ERROR == UDT::listen(serv, 10)) {
 	cerr << "[udr receiver] listen: " << UDT::getlasterror().getErrorMessage() << endl;

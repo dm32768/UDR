@@ -36,6 +36,7 @@ udr -P 27522 -a 9000 -b 9000 rsync -a big.tar user@host:/srv/
 | `-c path` | `udr` on the remote host (`udr`, from its PATH) |
 | `-d seconds` | data transfer timeout (15) |
 | `-r Mbps` | cap the sending rate |
+| `-m bytes` | UDT packet size, as the IP packet (1500); inside a tunnel, the tunnel's MTU |
 | `-i address` | address the receiver binds to |
 | `-n` | encrypt the data channel (below) |
 | `-v` | verbose |

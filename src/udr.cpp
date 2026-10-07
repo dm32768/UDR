@@ -56,6 +56,9 @@ char * get_udr_cmd(UDR_Options * udr_options) {
     if (udr_options->bandwidthcap > 0)
         args << " -r " << udr_options->bandwidthcap;
 
+    if (udr_options->mss > 0)
+        args << " -m " << udr_options->mss;
+
     if (udr_options->server_connect)
         args << " -t rsync";
     else
@@ -312,6 +315,8 @@ int main(int argc, char* argv[]) {
             rsh << " -v";
         if (curr_options.bandwidthcap > 0)
             rsh << " -r " << curr_options.bandwidthcap;
+        if (curr_options.mss > 0)
+            rsh << " -m " << curr_options.mss;
         rsh << " -s " << curr_options.port_num;
         rsync_argv[rsync_idx++] = strdup(rsh.str().c_str());
 

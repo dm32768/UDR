@@ -29,6 +29,7 @@ struct UDR_Options{
     int end_port;
     int timeout;
     int bandwidthcap;
+    int mss;
 
     bool tflag;
     bool sflag;

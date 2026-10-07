@@ -43,6 +43,11 @@ Data transfer timeout (default 15).
 .BI \-r " Mbps"
 Cap the sending rate.
 .TP
+.BI \-m " bytes"
+Size of a UDT packet, as the IP packet, 576 to 65535 (default 1500). Inside
+a tunnel set it to the tunnel interface's MTU, or every packet is sent as two
+fragments.
+.TP
 .BI \-i " address"
 Address the receiver binds to.
 .TP

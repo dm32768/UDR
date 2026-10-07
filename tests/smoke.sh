@@ -1,9 +1,9 @@
 #!/bin/sh
-# Copies a tree through udr and rsync on loopback, plain and with each cipher,
-# and compares the result. There is no sshd: a stand-in ssh drops its options
-# and runs the remote command on this host. Then a peer without the secret
-# connects to a receiver and must be refused before rsync runs.
-# Usage: tests/smoke.sh ./udr
+# Copies a tree through udr and rsync on loopback, plain, with each cipher
+# and with a packet size set, and compares the result. There is no sshd: a
+# stand-in ssh drops its options and runs the remote command on this host.
+# Then a peer without the secret connects to a receiver and must be refused
+# before rsync runs. Usage: tests/smoke.sh ./udr
 set -eu
 
 udr=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
@@ -31,17 +31,25 @@ printf 'hello\n' >"$work/src/sub/a.txt"
 
 cd "$work"
 port=19400
-for mode in plain aes-128 aes-192 aes-256 des-ede3 bf; do
+for mode in plain aes-128 aes-192 aes-256 des-ede3 bf mss; do
     dst="$work/dst-$mode"
     mkdir -p "$dst"
-    opt=""
-    [ "$mode" = plain ] || opt="-n$mode"
+    case "$mode" in
+        plain) opt="" ;;
+        mss) opt="-m 1400 -v" ;;
+        *) opt="-n$mode" ;;
+    esac
     port=$((port + 10))
     status=0
     PATH="$work/bin:$PATH" "$udr" $opt -c "$udr" -a "$port" -b "$((port + 5))" \
         rsync -a "$work/src/" "localhost:$dst/" >"$work/out-$mode" 2>&1 || status=$?
     if [ "$status" -ne 0 ] || ! diff -r "$work/src" "$dst" >/dev/null; then
         echo "smoke: $mode FAILED (exit $status)"
+        cat "$work/out-$mode"
+        exit 1
+    fi
+    if [ "$mode" = mss ] && ! grep -q "mss 1400" "$work/out-$mode"; then
+        echo "smoke: mss FAILED (receiver did not report the packet size)"
         cat "$work/out-$mode"
         exit 1
     fi

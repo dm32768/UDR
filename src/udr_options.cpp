@@ -39,6 +39,7 @@ void usage() {
     fprintf(stderr, "\t[-c path] Remote UDR executable\n");
     fprintf(stderr, "\t[-P ssh-port] Remote port to connect to via SSH\n");
     fprintf(stderr, "\t[-r max-bw] Max bandwidth to utilize (Mbps)\n");
+    fprintf(stderr, "\t[-m bytes] UDT packet size, as the IP packet (default 1500)\n");
     exit(1);
 }
 
@@ -48,6 +49,7 @@ void set_default_udr_options(UDR_Options * options) {
     options->end_port = 9100;
     options->timeout = 15;
     options->bandwidthcap = 0;
+    options->mss = 0;
 
     options->tflag = false;
     options->sflag = false;
@@ -93,6 +95,7 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
         {"encrypt", optional_argument, NULL, 'n'},
         {"sender", no_argument, NULL, 's'},
         {"login-name", required_argument, NULL, 'l'},
+        {"mss", required_argument, NULL, 'm'},
         {"remote-udr", required_argument, NULL, 'c'},
         {"server-port", required_argument, NULL, 'o'},
         {"max-bw", required_argument, NULL, 'r'},
@@ -104,7 +107,7 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
 
     int option_index = 0;
 
-    const char* opts = "P:i:tlvxa:b:s:d:h:c:o:r:n::";
+    const char* opts = "P:i:tlvxa:b:s:d:h:c:m:o:r:n::";
 
     while ((ch = getopt_long(rsync_arg_idx, argv, opts, long_options, &option_index)) != -1) {
         switch (ch) {
@@ -140,6 +143,13 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
             break;
         case 'c':
             snprintf(udr_options->udr_program_dest, PATH_MAX, "%s", optarg);
+            break;
+        case 'm':
+            udr_options->mss = atoi(optarg);
+            if (udr_options->mss < 576 || udr_options->mss > 65535) {
+                fprintf(stderr, "UDR ERROR: -m takes a packet size between 576 and 65535 bytes\n");
+                exit(1);
+            }
             break;
         case 'v':
             udr_options->verbose = true;
