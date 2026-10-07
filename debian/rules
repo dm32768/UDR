@@ -1,5 +1,8 @@
 #!/usr/bin/make -f
-# The loopback smoke test of tests/ runs in the build (make check).
+# The package links the system's libudt (libudt-dev in Build-Depends), not
+# the submodule, so that one copy of the library serves every program on the
+# host. The loopback smoke test of tests/ runs in the build (make check).
+export SYSTEM_UDT = 1
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 export DPKG_EXPORT_BUILDFLAGS = 1
 include /usr/share/dpkg/buildflags.mk

@@ -5,8 +5,9 @@
 #   ./build-deb.sh                  # on a Debian 13 build host; -> out/deb/
 #   USE_SBUILD=1 ./build-deb.sh     # in an sbuild unshare chroot
 #
-# The build needs libudt-dev (>= 4.13) from a repository that carries UDT
-# 4.13; Debian 13's own is 4.11. The version is the VERSION file's;
+# The package links the system's libudt, so the build needs libudt-dev
+# (>= 4.13) from a repository that carries UDT 4.13; Debian 13's own is
+# 4.11. The udt/ submodule is not packed. The version is the VERSION file's;
 # debian/changelog is written here from it.
 set -euo pipefail
 
