@@ -39,7 +39,8 @@ and limitations under the License.
 
 using std::string;
 
-int ppid_poll = 5;
+// How often the receiver looks for the end of the transfer, in microseconds.
+const useconds_t poll_interval = 200000;
 bool thread_log = false;
 
 //for debugging
@@ -684,7 +685,7 @@ int run_receiver(UDR_Options * udr_options) {
             break;
         }
 
-        sleep(ppid_poll);
+        usleep(poll_interval);
     }
 
     if(udr_options->verbose){
