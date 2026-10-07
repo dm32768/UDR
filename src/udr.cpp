@@ -43,7 +43,7 @@ using namespace std;
 char * get_udr_cmd(UDR_Options * udr_options) {
     ostringstream args;
     if (udr_options->encryption)
-        args << "-n " << udr_options->encryption_type << " ";
+        args << "-n" << udr_options->encryption_type << " ";
 
     args << " -d " << udr_options->timeout << " ";
 
@@ -310,7 +310,7 @@ int main(int argc, char* argv[]) {
         ostringstream rsh;
         rsh << curr_options.udr_program_src;
         if (curr_options.encryption)
-            rsh << " -n " << curr_options.encryption_type;
+            rsh << " -n" << curr_options.encryption_type;
         if (curr_options.verbose)
             rsh << " -v";
         if (curr_options.bandwidthcap > 0)

@@ -38,7 +38,7 @@ udr -P 27522 -a 9000 -b 9000 rsync -a big.tar user@host:/srv/
 | `-r Mbps` | cap the sending rate |
 | `-m bytes` | UDT packet size, as the IP packet (1500); inside a tunnel, the tunnel's MTU |
 | `-i address` | address the receiver binds to |
-| `-n` | encrypt the data channel (below) |
+| `-n<cipher>` | encrypt the data channel: aes-128, aes-192, aes-256, des-ede3 (below) |
 | `-v` | verbose |
 
 `-e` and `--rsh` belong to udr. The man page is `udr(1)`. Both hosts need this
@@ -57,9 +57,6 @@ what it started. `-a 9000 -b 9000` is one port and one transfer at a time.
 `-n` encrypts the data channel, and the result is not good enough for data that
 matters.
 
-- The cipher goes right after the option (`-naes-256`). The helper processes get it
-  as a separate word, which their option parser does not read, so every transfer
-  runs aes-128 whatever was asked.
 - Both directions use one key, with an all-zero IV, in CFB mode, and nothing
   authenticates the packets.
 - ssh protects the login and the secret, and nothing after it.

@@ -31,7 +31,7 @@ using namespace std;
 void usage() {
     fprintf(stderr, "usage: udr [UDR options] rsync [rsync options]\n\n");
     fprintf(stderr, "UDR options:\n");
-    fprintf(stderr, "\t[-n aes-128 | aes-192 | aes-256 | bf | des-ede3] Encryption cypher\n");
+    fprintf(stderr, "\t[-naes-128 | -naes-192 | -naes-256 | -ndes-ede3] Encryption cipher\n");
     fprintf(stderr, "\t[-v] Run UDR with verbosity\n");
     fprintf(stderr, "\t[-d timeout] Data transfer timeout in seconds\n");
     fprintf(stderr, "\t[-a port] Local UDT port\n");

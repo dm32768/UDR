@@ -52,10 +52,10 @@ fragments.
 Address the receiver binds to.
 .TP
 .BR \-n [\fIcipher\fR]
-Encrypt the data channel. The cipher goes right after the option, as in
-.BR \-naes\-256 ;
-udr hands the remote side no cipher name it reads, so every connection runs
-aes\-128. See
+Encrypt the data channel with that cipher: aes\-128 (the default), aes\-192,
+aes\-256 or des\-ede3. The cipher goes right after the option, as in
+.BR \-naes\-256 .
+See
 .BR SECURITY .
 .TP
 .B \-v

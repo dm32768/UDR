@@ -31,7 +31,7 @@ printf 'hello\n' >"$work/src/sub/a.txt"
 
 cd "$work"
 port=19400
-for mode in plain aes-128 aes-192 aes-256 des-ede3 bf mss; do
+for mode in plain aes-128 aes-192 aes-256 des-ede3 mss; do
     dst="$work/dst-$mode"
     mkdir -p "$dst"
     case "$mode" in

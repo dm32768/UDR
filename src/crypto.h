@@ -92,10 +92,6 @@ class crypto
             cipher = EVP_des_ede3_cfb();
             //log_print(LOG_DEBUG, "using des-ede3 encryption\n");
         }
-        else if (strncmp("bf", encryption_type, 3) == 0) {
-            cipher = EVP_bf_cfb();
-            //log_print(LOG_DEBUG, "using blowfish encryption\n");
-        }
         else {
             fprintf(stderr, "error unsupported encryption type %s\n",
                 encryption_type);
