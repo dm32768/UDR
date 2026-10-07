@@ -26,6 +26,7 @@ and limitations under the License.
 #include <sys/types.h>
 #include <glob.h>
 #include <udt.h>
+#include <openssl/crypto.h>
 #include "udr_util.h"
 #include "udr_threads.h"
 
@@ -95,8 +96,10 @@ string convert_int(int number) {
     return ss.str();
 }
 
-//perhaps want a timeout here now with server mode?
-string udt_recv_string( int udt_handle ) {
+// Reads a NUL-terminated string from the UDT socket. A peer that sends
+// more than max_len bytes without a NUL gets an empty string back, so no
+// peer can make this grow without bound.
+string udt_recv_string( int udt_handle, size_t max_len ) {
     char buf[ 2 ];
     buf[ 1 ] = '\0';
 
@@ -106,11 +109,13 @@ string udt_recv_string( int udt_handle ) {
 	int bytes_read = UDT::recv( udt_handle , buf , 1 , 0 );
 	if ( bytes_read == UDT::ERROR ){
 	    cerr << "recv:" << UDT::getlasterror().getErrorMessage() << endl;
-	    break;
+	    return "";
 	}
 	if ( bytes_read == 1 ) {
 	    if ( buf[ 0 ] == '\0' )
 		break;
+	    if ( str.size() >= max_len )
+		return "";
 	    str += buf;
 	}
 	else {
@@ -263,7 +268,7 @@ void *udt_to_handle(void *threadarg) {
 }
 
 
-int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char* cmd, int argc, char ** argv) {
+int run_sender(UDR_Options * udr_options, const char * key_hex, unsigned char * passphrase, const char* cmd, int argc, char ** argv) {
     UDT::startup();
     struct addrinfo hints, *local, *peer;
 
@@ -307,18 +312,22 @@ int run_sender(UDR_Options * udr_options, unsigned char * passphrase, const char
 
     ssize_t n;
 
-    //very first thing we send is the rsync argument so that the rsync server can be started and piped to from the UDT connection
-    n = strlen(cmd) + 1;
-    int ssize = 0;
-    int ss;
-    while(ssize < n) {
-	if (UDT::ERROR == (ss = UDT::send(client, cmd + ssize, n - ssize, 0)))
-	{
-	    cerr << "[udr sender] Send:" << UDT::getlasterror().getErrorMessage() << endl;
-	    break;
-	}
+    // First the secret, which the receiver checks before it does anything
+    // else, then the rsync command the receiver is to run. Each ends in NUL.
+    const char * first[2] = { key_hex, cmd };
+    for (int k = 0; k < 2; k++) {
+        n = strlen(first[k]) + 1;
+        int ssize = 0;
+        int ss;
+        while(ssize < n) {
+            if (UDT::ERROR == (ss = UDT::send(client, first[k] + ssize, n - ssize, 0)))
+            {
+                cerr << "[udr sender] Send:" << UDT::getlasterror().getErrorMessage() << endl;
+                break;
+            }
 
-	ssize += ss;
+            ssize += ss;
+        }
     }
 
     struct thread_data sender_to_udt;
@@ -468,13 +477,13 @@ int run_receiver(UDR_Options * udr_options) {
     }
     rand_pp[PASSPHRASE_SIZE] = '\0';
 
-    //stdout port number and password -- to send back to the client
-    printf("%s ", receiver_port);
+    char key_hex[HEX_PASSPHRASE_SIZE + 1];
+    for(int i = 0; i < PASSPHRASE_SIZE; i++)
+        snprintf(key_hex + 2 * i, 3, "%02x", rand_pp[i]);
 
-    for(int i = 0; i < PASSPHRASE_SIZE; i++) {
-	printf("%02x", rand_pp[i]);
-    }
-    printf(" \n");
+    // The port and the secret go back over ssh. The peer that presents the
+    // secret first on the UDT socket is the one this process serves.
+    printf("%s %s \n", receiver_port, key_hex);
     fflush(stdout);
 
     if(udr_options->verbose)
@@ -507,13 +516,25 @@ int run_receiver(UDR_Options * udr_options) {
 //  bool called_glob = false;
 
 
-    string cmd_str = udt_recv_string(recver);
+    string auth = udt_recv_string(recver, HEX_PASSPHRASE_SIZE);
+    if (auth.size() != HEX_PASSPHRASE_SIZE || CRYPTO_memcmp(auth.data(), key_hex, HEX_PASSPHRASE_SIZE) != 0) {
+        fprintf(stderr, "[udr receiver] peer at %s failed authentication\n", clienthost);
+        UDT::close(recver);
+        UDT::close(serv);
+        UDT::cleanup();
+        return 1;
+    }
+
+    string cmd_str = udt_recv_string(recver, 65536);
     const char * cmd = cmd_str.c_str();
 
-    //perhaps want to at least check that starts with rsync?
-    if(strncmp(cmd, "rsync ", 5) != 0){
-//      const char * error_msg = "UDR ERROR: non-rsync command detected\n";
-	exit(1);
+    // rsync asks its transport to run "rsync --server ..." and nothing else.
+    if(strncmp(cmd, "rsync --server", 14) != 0){
+        fprintf(stderr, "[udr receiver] refused a command that is not rsync --server\n");
+        UDT::close(recver);
+        UDT::close(serv);
+        UDT::cleanup();
+        return 1;
     }
 
     char * rsync_cmd;

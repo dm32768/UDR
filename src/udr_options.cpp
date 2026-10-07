@@ -61,8 +61,6 @@ void set_default_udr_options(UDR_Options * options) {
     snprintf(options->rsync_program, PATH_MAX, "%s", "rsync");
     snprintf(options->rsync_timeout, PATH_MAX, "%s", "--timeout=0");
     snprintf(options->shell_program, PATH_MAX, "%s", "sh");
-    snprintf(options->key_base_filename, PATH_MAX, "%s", ".udr_key");
-    options->key_filename[0] = '\0';
 
     options->host[0] = '\0';
     options->username[0] = '\0';
@@ -80,8 +78,6 @@ void set_default_udr_options(UDR_Options * options) {
 
 int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsync_arg_idx) {
     int ch;
-    char *key_dir = NULL;
-
     set_default_udr_options(udr_options);
 
     snprintf(udr_options->udr_program_src, PATH_MAX, "%s", argv[0]);
@@ -97,8 +93,6 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
         {"encrypt", optional_argument, NULL, 'n'},
         {"sender", no_argument, NULL, 's'},
         {"login-name", required_argument, NULL, 'l'},
-        {"keyfile", required_argument, NULL, 'p'},
-        {"keydir", required_argument, NULL, 'k'},
         {"remote-udr", required_argument, NULL, 'c'},
         {"server-port", required_argument, NULL, 'o'},
         {"max-bw", required_argument, NULL, 'r'},
@@ -110,7 +104,7 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
 
     int option_index = 0;
 
-    const char* opts = "P:i:tlvxa:b:s:d:h:p:c:k:o:r:n::";
+    const char* opts = "P:i:tlvxa:b:s:d:h:c:o:r:n::";
 
     while ((ch = getopt_long(rsync_arg_idx, argv, opts, long_options, &option_index)) != -1) {
         switch (ch) {
@@ -144,14 +138,8 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
         case 'l':
             snprintf(udr_options->username, PATH_MAX, "%s", optarg);
             break;
-        case 'p':
-            snprintf(udr_options->key_filename, PATH_MAX, "%s", optarg);
-            break;
         case 'c':
             snprintf(udr_options->udr_program_dest, PATH_MAX, "%s", optarg);
-            break;
-        case 'k':
-            key_dir = optarg;
             break;
         case 'v':
             udr_options->verbose = true;
@@ -193,15 +181,6 @@ int get_udr_options(UDR_Options * udr_options, int argc, char * argv[], int rsyn
     if (udr_options->timeout < 1){
 	fprintf(stderr, "Please specify a timeout duration [-d timeout] greater than 0s.\n");
 	exit(1);
-    }
-
-    //Finish setting up the key file path
-    if (key_dir == NULL) {
-        strncpy(udr_options->key_filename, udr_options->key_base_filename, PATH_MAX - 1);
-        udr_options->key_filename[PATH_MAX - 1] = '\0';
-    } else {
-        snprintf(udr_options->key_filename, PATH_MAX, "%.*s/%.*s", PATH_MAX / 2 - 1, key_dir,
-                 PATH_MAX / 2 - 1, udr_options->key_base_filename);
     }
 
     //Set which_process for debugging output

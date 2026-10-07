@@ -40,7 +40,10 @@ udr -P 27522 -a 9000 -b 9000 rsync -a big.tar user@host:/srv/
 | `-n` | encrypt the data channel (below) |
 | `-v` | verbose |
 
-`-e` and `--rsh` belong to udr. The man page is `udr(1)`.
+`-e` and `--rsh` belong to udr. The man page is `udr(1)`. Both hosts need this
+version or later: the remote udr makes a random secret for each transfer,
+reports it over ssh with the port, and serves only the peer that presents it
+first on the UDP port.
 
 ## Firewall
 
@@ -58,7 +61,7 @@ matters.
   runs aes-128 whatever was asked.
 - Both directions use one key, with an all-zero IV, in CFB mode, and nothing
   authenticates the packets.
-- ssh protects the login and the key exchange, and nothing after it.
+- ssh protects the login and the secret, and nothing after it.
 
 Run udr inside a tunnel (WireGuard, `ssh -w`) when the data matters.
 

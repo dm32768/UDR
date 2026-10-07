@@ -1,4 +1,4 @@
-.TH UDR 1 "" "udr 0.9.4" "User Commands"
+.TH UDR 1 "" "udr 0.9.4+dgma2" "User Commands"
 .SH NAME
 udr \- rsync over UDT
 .SH SYNOPSIS
@@ -14,8 +14,11 @@ place of ssh. One side is local and one remote:
 .IR host:path " or " user@host:path .
 .PP
 udr logs in to the remote host with ssh and starts udr there. The remote udr
-picks a free UDP port from a range and reports it over the ssh connection;
-the transfer then runs over that port. udr must be installed on both hosts.
+picks a free UDP port from a range, makes a random secret for this transfer,
+and reports both over the ssh connection. The local side connects to that
+port and presents the secret first; the remote udr serves only the peer that
+does, and refuses any other. The transfer then runs over that port. udr must
+be installed on both hosts, at this version or later on both.
 .PP
 The rsync options are rsync's own, except
 .BR \-e " and " \-\-rsh ,
@@ -62,10 +65,17 @@ replies to what it started. With
 .B \-a 9000 \-b 9000
 exactly one port is open and one transfer can run.
 .SH SECURITY
+The remote udr runs a command for the first peer that presents the secret
+it made for this transfer, and for nobody else. The secret crosses the ssh
+connection only, and the local side hands it to the sender it starts through
+the environment variable
+.BR UDR_KEY ,
+which is readable by the same user alone.
+.PP
 Without \-n the data channel is plain. With \-n it uses one key for both
 directions, an all-zero IV and a stream mode, and nothing authenticates the
 packets. Treat it as obfuscation and run udr inside a tunnel (WireGuard,
-ssh \-w) when the data matters. ssh protects the login only.
+ssh \-w) when the data matters. ssh protects the login and the secret only.
 .SH EXAMPLES
 .nf
 udr rsync \-av \-\-progress /data/ host:/data/

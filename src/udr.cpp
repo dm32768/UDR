@@ -24,6 +24,7 @@ and limitations under the License.
 #include <limits.h>
 #include <signal.h>
 #include <getopt.h>
+#include <cctype>
 
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -63,6 +64,16 @@ char * get_udr_cmd(UDR_Options * udr_options) {
     ostringstream cmd;
     cmd << udr_options->udr_program_dest << " " << args.str() << '\n';
     return strdup(cmd.str().c_str());
+}
+
+// 64 hex digits and nothing else.
+static bool valid_key_hex(const char * s) {
+    if (strlen(s) != HEX_PASSPHRASE_SIZE)
+        return false;
+    for (int i = 0; i < HEX_PASSPHRASE_SIZE; i++)
+        if (!isxdigit((unsigned char) s[i]))
+            return false;
+    return true;
 }
 
 void print_version() {
@@ -116,29 +127,21 @@ int main(int argc, char* argv[]) {
         char hex_pp[HEX_PASSPHRASE_SIZE+1];
         unsigned char passphrase[PASSPHRASE_SIZE+1];
 
-        if (curr_options.encryption) {
-            if (curr_options.verbose)
-                fprintf(stderr, "%s Key filename: %s\n", curr_options.which_process, curr_options.key_filename);
-            FILE* key_file = fopen(curr_options.key_filename, "r");
-            if (key_file == NULL) {
-                fprintf(stderr, "UDR ERROR: could not read from key_file %s\n", curr_options.key_filename);
-                exit(EXIT_FAILURE);
-            }
-            if (fgets(hex_pp, HEX_PASSPHRASE_SIZE+1, key_file) == NULL) {
-                fprintf(stderr, "UDR ERROR: could not read the key from %s\n", curr_options.key_filename);
-                exit(EXIT_FAILURE);
-            }
-            fclose(key_file);
-            remove(curr_options.key_filename);
-
-            unsigned int i;
-            for (i = 0; i < strlen(hex_pp); i = i + 2) {
-                unsigned int c;
-                sscanf(&hex_pp[i], "%02x", &c);
-                passphrase[i / 2] = (unsigned char) c;
-            }
-            passphrase[i / 2] = '\0';
+        // The per-transfer secret, made by the receiver and handed over ssh,
+        // reaches this process through rsync's environment. It authenticates
+        // this end to the receiver, and keys the cipher when -n is on.
+        const char * env_key = getenv("UDR_KEY");
+        if (env_key == NULL || !valid_key_hex(env_key)) {
+            fprintf(stderr, "UDR ERROR: UDR_KEY is not set to the %d-character key\n", HEX_PASSPHRASE_SIZE);
+            exit(EXIT_FAILURE);
         }
+        memcpy(hex_pp, env_key, HEX_PASSPHRASE_SIZE + 1);
+        for (int i = 0; i < PASSPHRASE_SIZE; i++) {
+            unsigned int c;
+            sscanf(&hex_pp[2 * i], "%02x", &c);
+            passphrase[i] = (unsigned char) c;
+        }
+        passphrase[PASSPHRASE_SIZE] = '\0';
 
         snprintf(curr_options.host, PATH_MAX, "%s", argv[rsync_arg_idx - 1]);
 
@@ -158,7 +161,7 @@ int main(int argc, char* argv[]) {
             arguments += sep;
         }
 
-        run_sender(&curr_options, passphrase, arguments.c_str(), rsync_argc, rsync_args);
+        run_sender(&curr_options, hex_pp, passphrase, arguments.c_str(), rsync_argc, rsync_args);
 
         if (curr_options.verbose)
             fprintf(stderr, "%s run_sender done\n", curr_options.which_process);
@@ -262,17 +265,18 @@ int main(int argc, char* argv[]) {
             fprintf(stderr, "%s port_num: %s passphrase: %s\n", curr_options.which_process, curr_options.port_num, hex_pp);
         }
 
-        if (curr_options.encryption) {
-            FILE *key_file = fopen(curr_options.key_filename, "w");
-            chmod(curr_options.key_filename, S_IRUSR | S_IWUSR);
-
-            if (key_file == NULL) {
-                fprintf(stderr, "UDR ERROR: could not write key file: %s\n", curr_options.key_filename);
-                exit(EXIT_FAILURE);
-            }
-            fprintf(key_file, "%s", hex_pp);
-            fclose(key_file);
+        if (hex_pp != NULL) {
+            char * nl = strchr(hex_pp, '\n');
+            if (nl != NULL)
+                *nl = '\0';
         }
+        if (hex_pp == NULL || !valid_key_hex(hex_pp)) {
+            fprintf(stderr, "UDR ERROR: the remote udr sent no key; both hosts need udr %s or later\n", version);
+            exit(EXIT_FAILURE);
+        }
+        // rsync inherits the environment and passes it to the sender it
+        // starts (the -e program below).
+        setenv("UDR_KEY", hex_pp, 1);
 
         //make sure the port num str is null terminated
         char * ptr;
@@ -299,34 +303,17 @@ int main(int argc, char* argv[]) {
 
         rsync_argv[rsync_idx++] = (char *) "-e";
 
-        char udr_rsync_args1[100];
-
-        if (curr_options.encryption) {
-            strcpy(udr_rsync_args1, "-n ");
-            strcat(udr_rsync_args1, curr_options.encryption_type);
-            strcat(udr_rsync_args1, " ");
-        }
-        else
-            udr_rsync_args1[0] = '\0';
-
+        // The transport rsync starts: this program as the sender.
+        ostringstream rsh;
+        rsh << curr_options.udr_program_src;
+        if (curr_options.encryption)
+            rsh << " -n " << curr_options.encryption_type;
         if (curr_options.verbose)
-            strcat(udr_rsync_args1, "-v ");
-
-        if (curr_options.bandwidthcap > 0){
-            char rate_arg[64];
-            snprintf(rate_arg, sizeof(rate_arg)-1, "-r %d", curr_options.bandwidthcap);
-            strcat(udr_rsync_args1, rate_arg);
-            strcat(udr_rsync_args1, " ");
-        }
-
-        strcat(udr_rsync_args1, "-s");
-
-        const char * udr_rsync_args2 = "-p";
-
-        rsync_argv[rsync_idx] = (char*) malloc(strlen(curr_options.udr_program_src) + strlen(udr_rsync_args1) + strlen(curr_options.port_num) + strlen(udr_rsync_args2) + strlen(curr_options.key_filename) + 6);
-        sprintf(rsync_argv[rsync_idx], "%s %s %s %s %s", curr_options.udr_program_src, udr_rsync_args1, curr_options.port_num, udr_rsync_args2, curr_options.key_filename);
-
-        rsync_idx++;
+            rsh << " -v";
+        if (curr_options.bandwidthcap > 0)
+            rsh << " -r " << curr_options.bandwidthcap;
+        rsh << " -s " << curr_options.port_num;
+        rsync_argv[rsync_idx++] = strdup(rsh.str().c_str());
 
         //fprintf(stderr, "first_source_idx: %d\n", first_source_idx);
         for (int i = rsync_arg_idx + 1; i < argc; i++) {

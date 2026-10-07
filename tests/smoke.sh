@@ -1,7 +1,9 @@
 #!/bin/sh
 # Copies a tree through udr and rsync on loopback, plain and with each cipher,
 # and compares the result. There is no sshd: a stand-in ssh drops its options
-# and runs the remote command on this host. Usage: tests/smoke.sh ./udr
+# and runs the remote command on this host. Then a peer without the secret
+# connects to a receiver and must be refused before rsync runs.
+# Usage: tests/smoke.sh ./udr
 set -eu
 
 udr=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
@@ -45,3 +47,24 @@ for mode in plain aes-128 aes-192 aes-256 des-ede3 bf; do
     fi
     echo "smoke: $mode ok"
 done
+
+# A receiver on its own, as ssh would start it. It prints its port and secret,
+# then waits for one connection.
+port=$((port + 10))
+"$udr" -a "$port" -b "$port" -t rsync >"$work/recv.out" 2>"$work/recv.err" &
+rpid=$!
+i=0
+while [ ! -s "$work/recv.out" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
+rport=$(cut -d' ' -f1 "$work/recv.out")
+mkdir -p "$work/dst-auth"
+wrong=$(printf '%064d' 0)
+UDR_KEY="$wrong" timeout 20 "$udr" -s "$rport" localhost rsync --server -a . "$work/dst-auth/" \
+    </dev/null >/dev/null 2>&1 || true
+status=0
+wait $rpid || status=$?
+if [ "$status" -eq 0 ] || ! grep -q "failed authentication" "$work/recv.err"; then
+    echo "smoke: auth FAILED (receiver exit $status)"
+    cat "$work/recv.err"
+    exit 1
+fi
+echo "smoke: auth ok (receiver refused a peer without the secret)"

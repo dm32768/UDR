@@ -44,9 +44,6 @@ struct UDR_Options{
     char rsync_timeout[PATH_MAX+1];
     char shell_program[PATH_MAX+1];
 
-    char key_base_filename[PATH_MAX+1];
-    char key_filename[PATH_MAX+1];
-
     char host[PATH_MAX+1];
     char port_num[NI_MAXSERV+1];
     char username[PATH_MAX+1];
