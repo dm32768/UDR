@@ -7,9 +7,17 @@ through the jwagnerhki fork, which has `-r`, `-i`, `-d` and `-P`. It is built
 for Debian 13 against the system's OpenSSL and `libudt-dev` 4.13.
 
 ```sh
+git clone --recursive https://github.com/dm32768/UDR.git
 make && make check       # ./udr, then a loopback transfer through each cipher
+make SYSTEM_UDT=1        # link the system's libudt (libudt-dev 4.13) instead
 ./build-deb.sh           # the .deb, in out/deb/ (Debian 13 host)
 ```
+
+UDT is the git submodule `udt/`, our fork of dorkbox/UDT, pinned to the
+commit this tree is tested with. `make` builds it and links it statically;
+`SYSTEM_UDT=1` uses the library installed on the host, which is what the
+Debian package does. OpenSSL (`libssl-dev`) and `pkg-config` are needed
+either way.
 
 `udr` and rsync must be installed on both hosts.
 
@@ -56,7 +64,6 @@ Run udr inside a tunnel (WireGuard, `ssh -w`) when the data matters.
 
 ## Build and tests
 
-- `make` links the system's `libudt` and OpenSSL 3.
 - Only the ssh form (`host:path`) works. The `host::module` form of the original
   has no server to talk to.
 - `tests/smoke.sh` copies a tree through udr on loopback with every cipher, using a
